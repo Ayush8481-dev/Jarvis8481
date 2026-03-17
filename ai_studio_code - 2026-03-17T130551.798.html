@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+<title>Jarvis Translator | Professional</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- PDF.js & jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #f0f4f9;
+            --bg-surface: #ffffff;
+            --bg-surface-hover: #f1f3f4;
+            --border-color: #dadce0;
+            --text-main: #1f1f1f;
+            --text-muted: #444746;
+            --text-placeholder: #747775;
+            --primary: #0b57d0;
+            --primary-hover: #0842a0;
+            --primary-light: #d3e3fd;
+            --error: #b3261e;
+            --warning: #f29900;
+            --success: #146c2e;
+            --radius-lg: 24px;
+            --radius-md: 12px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Google Sans', 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+        }
+
+        #networkBanner {
+            position: fixed; top: 0; left: 0; width: 100%; background: var(--warning); color: #fff;
+            text-align: center; padding: 8px; font-size: 14px; font-weight: 600; z-index: 2000;
+            transform: translateY(-100%); transition: transform 0.3s ease;
+        }
+        #networkBanner.offline { transform: translateY(0); }
+
+        .icon { width: 22px; height: 22px; fill: currentColor; }
+        .icon-lg { width: 28px; height: 28px; }
+        .icon-btn { 
+            background: transparent; border: none; color: var(--text-muted); cursor: pointer; 
+            padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            transition: all 0.2s ease; 
+        }
+        .icon-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); }
+        .icon-btn.active { color: var(--error); background: #fce8e6; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; }
+
+        .app-container { max-width: 1200px; width: 100%; display: flex; flex-direction: column; gap: 24px; margin-top: 16px;}
+
+        .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; padding-left: 8px; }
+        .header-title { display: flex; align-items: center; gap: 12px; }
+        .header h1 { font-size: 26px; font-weight: 500; color: var(--text-main); letter-spacing: -0.5px; }
+        .cache-status { font-size: 12px; color: var(--success); font-weight: 500; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.5s;}
+        .cache-status.visible { opacity: 1; }
+
+        .translate-wrapper {
+            background: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow);
+            display: flex; flex-direction: column; transition: box-shadow 0.3s ease;
+        }
+        .translate-wrapper:hover { box-shadow: var(--shadow-hover); }
+
+        .lang-controls { display: flex; align-items: center; border-bottom: 1px solid var(--border-color); background: #fff; position: relative; padding: 4px 0; }
+        .lang-side { flex: 1; display: flex; align-items: center; padding: 8px 16px; }
+        
+        select.lang-select {
+            background: transparent; border: none; color: var(--primary); font-size: 15px;
+            font-weight: 600; font-family: inherit; outline: none; cursor: pointer; padding: 10px 12px;
+            appearance: none; border-radius: 8px; transition: 0.2s;
+        }
+        select.lang-select:hover { background: var(--primary-light); }
+        select.lang-select option { color: var(--text-main); font-weight: 400; }
+
+        .swap-btn {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            background: #fff; border: 1px solid var(--border-color);
+            border-radius: 50%; padding: 8px; cursor: pointer; color: var(--text-muted);
+            transition: 0.2s; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .swap-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); }
+
+        .text-grid { display: flex; flex-direction: row; min-height: 280px; }
+        .text-panel { flex: 1; display: flex; flex-direction: column; position: relative; background: #fff; }
+        .text-panel:first-child { border-right: 1px solid var(--border-color); }
+        .text-panel.output-panel { background: #f8f9fa; }
+        
+        textarea {
+            flex-grow: 1; width: 100%; background: transparent; border: none; resize: none;
+            padding: 24px; font-size: 22px; line-height: 1.5; color: var(--text-main);
+            font-family: inherit; outline: none;
+        }
+        textarea::placeholder { color: var(--text-placeholder); font-weight: 400; }
+
+        .panel-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: transparent; }
+        .footer-actions { display: flex; gap: 4px; }
+        .char-count { font-size: 13px; color: var(--text-placeholder); font-weight: 500; padding-right: 8px;}
+
+        .doc-section {
+            background: var(--bg-surface); border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg); padding: 32px; box-shadow: var(--shadow);
+            transition: box-shadow 0.3s ease;
+        }
+        .doc-section:hover { box-shadow: var(--shadow-hover); }
+        
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+        .section-header h2 { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 10px; color: var(--text-main); }
+        
+        .status-badge {
+            font-size: 14px; font-weight: 500; padding: 6px 14px; border-radius: 20px;
+            background: var(--bg-surface-hover); color: var(--text-muted); display: flex; align-items: center; gap: 8px;
+        }
+
+        .drop-zone {
+            border: 2px dashed #c4c7c5; border-radius: var(--radius-md); padding: 48px 20px; text-align: center; cursor: pointer; transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 12px; background: #f8f9fa; margin-bottom: 24px;
+        }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--primary); background: var(--primary-light); }
+        .drop-zone h3 { font-size: 16px; font-weight: 500; color: var(--text-main); }
+        .drop-zone p { font-size: 14px; color: var(--text-muted); }
+
+        .doc-controls { display: none; flex-direction: column; gap: 16px; }
+        .doc-settings-row { 
+            display: flex; align-items: stretch; justify-content: space-between; flex-wrap: wrap; gap: 16px; 
+        }
+
+        .doc-lang-selectors, .page-inputs { 
+            flex: 1; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; 
+            background: #fff; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border-color); 
+        }
+        .input-group { display: flex; align-items: center; gap: 8px; }
+        
+        .doc-lang-selectors select, .page-inputs input {
+            background: transparent; border: none; color: var(--text-main); 
+            font-size: 15px; font-weight: 600; text-align: center; outline: none; 
+            border-bottom: 2px solid var(--primary); padding: 4px 8px; cursor: pointer;
+        }
+        .page-inputs input { width: 60px; }
+        
+        .doc-lang-selectors span, .page-inputs label { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+        
+        .btn-primary { 
+            background: var(--primary); color: #fff; border: none; padding: 14px 28px; 
+            border-radius: 28px; font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+        
+        .btn-outline { 
+            background: #fff; border: 1px solid var(--border-color); color: var(--primary); padding: 14px 28px; 
+            border-radius: 28px; font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
+        }
+        .btn-outline:hover { background: var(--primary-light); }
+
+        .pdf-status-text { font-size: 15px; font-weight: 500; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+        #pagesContainer { display: none; flex-direction: column; gap: 24px; margin-top: 24px; max-height: 60vh; overflow-y: auto; padding-right: 10px; }
+        #pagesContainer::-webkit-scrollbar { width: 8px; }
+        #pagesContainer::-webkit-scrollbar-thumb { background: #c4c7c5; border-radius: 10px; }
+        
+        .page-wrapper { background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; align-items: center; position: relative; }
+        .page-status { width: 100%; font-size: 14px; font-weight: 500; color: var(--primary); margin-bottom: 16px; text-align: left; }
+        
+        .canvas-wrapper { position: relative; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); line-height: 0; cursor: zoom-in; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .canvas-wrapper:hover { transform: scale(1.01); box-shadow: var(--shadow-hover); }
+        .canvas-wrapper::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.03); opacity: 0; transition: 0.2s; pointer-events: none;}
+        .canvas-wrapper:hover::after { opacity: 1; }
+        
+        canvas { width: 100%; height: auto; display: block; }
+        svg.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        svg.overlay text { pointer-events: auto; user-select: text; }
+
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.9); backdrop-filter: blur(5px);
+            align-items: center; justify-content: center; flex-direction: column; opacity: 0; transition: opacity 0.3s;
+            overflow: hidden; 
+        }
+        .modal.active { display: flex; opacity: 1; }
+        .modal-body { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: grab;}
+        .modal-body:active { cursor: grabbing; }
+        .modal-content { 
+            max-width: 90%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            transition: transform 0.1s ease-out; transform-origin: center center;
+            will-change: transform;
+        }
+        .modal-actions { padding: 16px; display: flex; gap: 16px; background: rgba(0,0,0,0.5); width: 100%; justify-content: center; z-index: 1001;}
+        .zoom-hint { position: absolute; top: 16px; color: rgba(255,255,255,0.7); font-size: 14px; pointer-events: none;}
+
+        .footer { margin-top: 32px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .footer-brand { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text-placeholder); }
+
+        #profileAvatar { transition: transform 0.2s; }
+        #profileAvatar:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        @media (max-width: 900px) {
+            .text-grid { flex-direction: column; }
+            .text-panel:first-child { border-right: none; border-bottom: 1px solid var(--border-color); }
+            textarea { min-height: 180px; font-size: 20px; padding: 16px;}
+            .doc-settings-row { flex-direction: column; align-items: stretch; }
+            .btn-primary, .btn-outline { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="networkBanner">Network disconnected. Translation paused. Waiting for connection...</div>
+
+<div class="app-container">
+    <div class="header">
+        <div class="header-title">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4z"/>
+                <path d="M4 8v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 14l2 2 4-4"/>
+            </svg>
+            <h1>Jarvis Translator</h1>
+        </div>
+        <div class="cache-status" id="cacheStatusIndicator">
+            <svg class="icon" style="width:16px;height:16px;" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" fill="none"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2" fill="none"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+            Auto-Saved
+        </div>
+    </div>
+
+    <!-- Text Interface -->
+    <div class="translate-wrapper">
+        <div class="lang-controls">
+            <div class="lang-side">
+                <select class="lang-select" id="sourceLanguage">
+                    <option value="auto">Detect Language</option>
+                    <option value="en">English</option>
+                    <option value="hi">Hindi</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="ja">Japanese</option>
+                    <option value="zh-CN">Chinese</option>
+                </select>
+            </div>
+            <button class="swap-btn" id="swapLangBtn" title="Swap languages">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M7 10h14l-4-4m-6 12H3l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </button>
+            <div class="lang-side" style="justify-content: flex-end;">
+                <select class="lang-select" id="targetLanguage">
+                    <option value="hi" selected>Hindi</option>
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="ja">Japanese</option>
+                    <option value="zh-CN">Chinese</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="text-grid">
+            <div class="text-panel">
+                <textarea id="textInput" placeholder="Enter text to translate..."></textarea>
+                <div class="panel-footer">
+                    <div class="footer-actions">
+                        <button class="icon-btn" id="micBtn" title="Translate by Voice">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                        </button>
+                        <button class="icon-btn" id="speakInputBtn" title="Listen (Google TTS)">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                        </button>
+                    </div>
+                    <span class="char-count" id="charCount">0 / 5000</span>
+                </div>
+            </div>
+            <div class="text-panel output-panel">
+                <textarea id="textOutput" placeholder="Translation" readonly></textarea>
+                <div class="panel-footer">
+                    <div class="footer-actions">
+                        <button class="icon-btn" id="speakOutputBtn" title="Listen (Google TTS)">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                        </button>
+                        <button class="icon-btn" id="copyBtn" title="Copy translation">
+                            <svg class="icon" id="copyIcon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                        </button>
+                    </div>
+                    <div id="translateSpinner" style="display:none; color: var(--primary);">
+                        <svg class="icon spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="30" stroke-linecap="round" fill="none"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Section -->
+    <div class="doc-section">
+        <div class="section-header">
+            <h2>
+                <svg class="icon-lg" style="color: var(--primary)" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                Document Translation
+            </h2>
+            <div class="status-badge" id="sysStatus">
+                <svg class="icon" style="color: var(--success);" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                Ready
+            </div>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <svg class="icon-lg" style="width: 48px; height: 48px; color: var(--primary);" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            <h3>Drag and drop documents or images</h3>
+            <p>Supports PDF, JPG, PNG files. Auto-resumes processing if interrupted.</p>
+            <input type="file" id="fileUpload" accept="image/*, application/pdf" multiple style="display: none;">
+        </div>
+
+        <div class="doc-controls" id="docControls">
+            <div class="doc-settings-row">
+                <div class="doc-lang-selectors">
+                    <div class="input-group">
+                        <span>Original:</span>
+                        <select id="docSourceLang">
+                            <option value="auto">Auto Detect</option>
+                            <option value="en" selected>English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="zh-CN">Chinese</option>
+                        </select>
+                    </div>
+                    <svg viewBox="0 0 24 24" style="width:16px; height:16px; color:var(--text-muted);"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+                    <div class="input-group">
+                        <span>Target:</span>
+                        <select id="docTargetLang">
+                            <option value="hi" selected>Hindi</option>
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="zh-CN">Chinese</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="page-inputs" id="pdfConfig" style="display:none;">
+                    <div class="input-group">
+                        <label>Start:</label>
+                        <input type="number" id="startPage" min="1" value="1">
+                    </div>
+                    <div class="input-group">
+                        <label>End:</label>
+                        <input type="number" id="endPage" min="1" value="1">
+                    </div>
+                    
+                    <span id="pdfMetaText" style="font-size: 13px; color: var(--text-muted); margin-right: auto;"></span>
+                    
+                    <div style="width: 1px; height: 24px; background: var(--border-color); margin: 0 4px;"></div>
+                    
+                    <div class="input-group">
+                        <label title="Pages processed simultaneously">Parallel:</label>
+                        <input type="number" id="concurrencyLimit" min="1" max="10" value="3" style="width: 45px;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="doc-settings-row" style="justify-content: flex-end;">
+                <button class="btn-primary" id="analyzeBtn">
+                    <svg class="icon btn-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span id="analyzeBtnText">Translate Document</span>
+                </button>
+                
+                <div id="pdfStatusArea" class="pdf-status-text" style="display: none;">
+                    <svg class="icon spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="30" stroke-linecap="round" fill="none"/></svg>
+                    Building High-Quality Image PDF...
+                </div>
+                
+                <button class="btn-outline" id="downloadBtn" style="display:none;">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" fill="none"/><polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                    Download Translated PDF
+                </button>
+            </div>
+        </div>
+
+        <div id="pagesContainer"></div>
+    </div>
+
+    <!-- Zoomable Interactive Modal Viewer -->
+    <div id="imageModal" class="modal">
+        <div class="zoom-hint">Scroll to Zoom • Click & Drag to Pan</div>
+        <div class="modal-body" id="modalBody">
+            <img id="modalImg" class="modal-content" src="" alt="Translated View">
+        </div>
+        <div class="modal-actions">
+            <button class="btn-primary" id="modalDownloadBtn">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" fill="none"/><polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                Download Image
+            </button>
+            <button class="btn-outline" id="modalCloseBtn" style="border-color: #fff; color: #fff; background: rgba(255,255,255,0.1);">
+                <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Close
+            </button>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-brand">
+            <img id="profileAvatar" src="https://i.ibb.co/F47sjfqh/IMG-20260103-121746-2.jpg" alt="Ayush Avatar" style="width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid var(--primary);">
+            Developed by Ayush@8481
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 0. GLOBALS & DOM ELEMENTS
+    // ==========================================
+    const DOMElements = {
+        sourceLang: document.getElementById('sourceLanguage'),
+        targetLang: document.getElementById('targetLanguage'),
+        swapLangBtn: document.getElementById('swapLangBtn'),
+        docSourceLang: document.getElementById('docSourceLang'),
+        docTargetLang: document.getElementById('docTargetLang'),
+        textInput: document.getElementById('textInput'),
+        textOutput: document.getElementById('textOutput'),
+        charCount: document.getElementById('charCount'),
+        translateSpinner: document.getElementById('translateSpinner'),
+        micBtn: document.getElementById('micBtn'),
+        sysStatus: document.getElementById('sysStatus'),
+        dropZone: document.getElementById('dropZone'),
+        fileUpload: document.getElementById('fileUpload'),
+        docControls: document.getElementById('docControls'),
+        pdfConfig: document.getElementById('pdfConfig'),
+        startPageInput: document.getElementById('startPage'),
+        endPageInput: document.getElementById('endPage'),
+        concurrencyLimit: document.getElementById('concurrencyLimit'),
+        pdfMetaText: document.getElementById('pdfMetaText'),
+        analyzeBtn: document.getElementById('analyzeBtn'),
+        analyzeBtnText: document.getElementById('analyzeBtnText'),
+        downloadBtn: document.getElementById('downloadBtn'),
+        pdfStatusArea: document.getElementById('pdfStatusArea'),
+        pagesContainer: document.getElementById('pagesContainer'),
+        imageModal: document.getElementById('imageModal'),
+        modalImg: document.getElementById('modalImg'),
+        modalBody: document.getElementById('modalBody'),
+        modalDownloadBtn: document.getElementById('modalDownloadBtn'),
+        modalCloseBtn: document.getElementById('modalCloseBtn'),
+        cacheStatus: document.getElementById('cacheStatusIndicator'),
+        networkBanner: document.getElementById('networkBanner')
+    };
+
+    const langNames = { 'en': 'English', 'hi': 'Hindi', 'es': 'Spanish', 'fr': 'French', 'de': 'German', 'ja': 'Japanese', 'zh-CN': 'Chinese' };
+    const ocrLangMap = { 'en': 'eng', 'hi': 'hin', 'es': 'spa', 'fr': 'fre', 'de': 'ger', 'ja': 'jpn', 'zh-CN': 'chs', 'auto': 'eng' };
+    const ttsLangMap = { 'hi': 'hi', 'es': 'es', 'fr': 'fr', 'ja': 'ja', 'de': 'de', 'zh-CN': 'zh', 'en': 'en' };
+
+    let currentFiles =[]; 
+    let processedPages =[]; 
+    let loadedPdfDoc = null;
+    let typingTimeout = null;
+    let autoSaveTimeout = null;
+    let currentAudio = null;
+
+    let currentFileHash = "";
+    let cachedDocPages = {}; 
+
+    // ==========================================
+    // 1. NETWORK RESILIENCE (For Client-Side Wifi Drops)
+    // ==========================================
+    window.addEventListener('offline', () => DOMElements.networkBanner.classList.add('offline'));
+    window.addEventListener('online', () => DOMElements.networkBanner.classList.remove('offline'));
+
+    // This loop ONLY triggers if the user's phone completely loses connection.
+    // It does not trigger for API quotas, since the backend handles that invisibly.
+    async function safeFetchWithRetry(url, options, maxRetries = 3) {
+        let attempt = 0;
+        while (true) {
+            while (!navigator.onLine) {
+                DOMElements.networkBanner.classList.add('offline');
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            DOMElements.networkBanner.classList.remove('offline');
+            
+            try {
+                const res = await fetch(url, options);
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                return res;
+            } catch(e) {
+                attempt++;
+                if (attempt >= maxRetries) throw new Error("Client network dropped.");
+                await new Promise(r => setTimeout(r, 2000)); 
+            }
+        }
+    }
+
+    // ==========================================
+    // 2. 48-HOUR INDEXED-DB CACHE
+    // ==========================================
+    const DB_NAME = "JarvisTranslatorDB";
+    let idb = null;
+
+    function initDB() {
+        return new Promise((resolve) => {
+            const req = indexedDB.open(DB_NAME, 2); 
+            req.onupgradeneeded = (e) => {
+                idb = e.target.result;
+                if (!idb.objectStoreNames.contains('session')) idb.createObjectStore('session', { keyPath: 'id' });
+                if (!idb.objectStoreNames.contains('pdf_cache')) idb.createObjectStore('pdf_cache', { keyPath: 'hash' });
+            };
+            req.onsuccess = (e) => { idb = e.target.result; resolve(); };
+            req.onerror = () => resolve();
+        });
+    }
+
+    function triggerAutoSave() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(async () => {
+            if(!idb) return;
+            try {
+                const tx = idb.transaction('session', 'readwrite');
+                tx.objectStore('session').put({
+                    id: 'appState',
+                    timestamp: Date.now(),
+                    textInput: DOMElements.textInput.value,
+                    sourceLang: DOMElements.sourceLang.value,
+                    targetLang: DOMElements.targetLang.value,
+                    docSourceLang: DOMElements.docSourceLang.value,
+                    docTargetLang: DOMElements.docTargetLang.value
+                });
+                DOMElements.cacheStatus.classList.add('visible');
+                setTimeout(() => DOMElements.cacheStatus.classList.remove('visible'), 2000);
+            } catch(e) {}
+        }, 1500);
+    }
+
+    async function loadCache() {
+        await initDB();
+        if(!idb) return;
+        return new Promise(resolve => {
+            const tx = idb.transaction('session', 'readonly');
+            const req = tx.objectStore('session').get('appState');
+            req.onsuccess = () => {
+                const data = req.result;
+                if (data && (Date.now() - data.timestamp < 48 * 60 * 60 * 1000)) {
+                    DOMElements.textInput.value = data.textInput || "";
+                    DOMElements.sourceLang.value = data.sourceLang || "auto";
+                    DOMElements.targetLang.value = data.targetLang || "hi";
+                    DOMElements.docSourceLang.value = data.docSourceLang || "auto";
+                    DOMElements.docTargetLang.value = data.docTargetLang || "hi";
+                    if(data.textInput) DOMElements.textInput.dispatchEvent(new Event('input'));
+                }
+                resolve();
+            };
+        });
+    }
+
+    async function getFileHash(file) {
+        const str = `${file.name}_${file.size}_${file.lastModified}`;
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash |= 0; }
+        return Math.abs(hash).toString(16) + "_" + file.size;
+    }
+
+    async function savePdfCache(hash, pagesDataMap) {
+        if (!idb) return;
+        try {
+            const tx = idb.transaction('pdf_cache', 'readwrite');
+            tx.objectStore('pdf_cache').put({ hash: hash, timestamp: Date.now(), pages: pagesDataMap });
+            triggerAutoSave(); 
+        } catch (e) {}
+    }
+
+    async function loadPdfCache(hash) {
+        if (!idb) return null;
+        return new Promise(resolve => {
+            const tx = idb.transaction('pdf_cache', 'readonly');
+            const req = tx.objectStore('pdf_cache').get(hash);
+            req.onsuccess = () => {
+                const data = req.result;
+                if (data && (Date.now() - data.timestamp < 48 * 60 * 60 * 1000)) resolve(data.pages);
+                else resolve(null);
+            };
+            req.onerror = () => resolve(null);
+        });
+    }
+
+    ['input', 'change'].forEach(evt => {
+        DOMElements.textInput.addEventListener(evt, triggerAutoSave);
+        DOMElements.sourceLang.addEventListener(evt, triggerAutoSave);
+        DOMElements.targetLang.addEventListener(evt, triggerAutoSave);
+        DOMElements.docSourceLang.addEventListener(evt, triggerAutoSave);
+        DOMElements.docTargetLang.addEventListener(evt, triggerAutoSave);
+    });
+
+    window.addEventListener('DOMContentLoaded', loadCache);
+
+    // ==========================================
+    // 3. UI HELPERS & TRANSLATION
+    // ==========================================
+    function updateStatus(text, type = 'info') {
+        const iconMap = {
+            'success': '<svg class="icon" style="color: var(--success);" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+            'error': '<svg class="icon" style="color: var(--error);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2"/></svg>',
+            'load': '<svg class="icon spinner" style="color: var(--primary);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="30" stroke-linecap="round" fill="none"/></svg>'
+        };
+        DOMElements.sysStatus.innerHTML = `${iconMap[type] || iconMap['info']} ${text}`;
+    }
+
+    DOMElements.swapLangBtn.addEventListener('click', () => {
+        if(DOMElements.sourceLang.value === 'auto') return; 
+        const temp = DOMElements.sourceLang.value;
+        DOMElements.sourceLang.value = DOMElements.targetLang.value;
+        DOMElements.targetLang.value = temp;
+        if(DOMElements.textInput.value.trim()) DOMElements.textInput.dispatchEvent(new Event('input'));
+        triggerAutoSave();
+    });
+
+    class TranslationManager {
+        async translate(text, source, target) {
+            if (!text || !text.trim()) return { text: "", lang: "" };
+            const res = await safeFetchWithRetry(`https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=${source}&tl=${target}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+                body: new URLSearchParams({ q: text })
+            }, 3);
+            const data = await res.json();
+            if (!data || !data[0]) throw new Error("Invalid API Response");
+            let result = ""; let detectedLang = source;
+            if (Array.isArray(data[0])) { data[0].forEach(seg => { if (seg[0]) result += seg[0]; }); }
+            if (data[2]) detectedLang = data[2]; 
+            return { text: result.trim(), lang: detectedLang };
+        }
+    }
+    const translator = new TranslationManager();
+
+    DOMElements.textInput.addEventListener('input', () => {
+        const text = DOMElements.textInput.value;
+        DOMElements.charCount.innerText = `${text.length} / 5000`;
+        if (text.length > 5000) DOMElements.textInput.value = text.substring(0, 5000);
+        
+        clearTimeout(typingTimeout);
+        if (!text.trim()) { 
+            DOMElements.textOutput.value = ''; 
+            DOMElements.translateSpinner.style.display = 'none'; 
+            if(DOMElements.sourceLang.value === 'auto') DOMElements.sourceLang.options[0].text = "Detect Language";
+            return; 
+        }
+        
+        DOMElements.translateSpinner.style.display = 'block';
+        typingTimeout = setTimeout(async () => {
+            try {
+                const result = await translator.translate(DOMElements.textInput.value.trim(), DOMElements.sourceLang.value, DOMElements.targetLang.value);
+                DOMElements.textOutput.value = result.text;
+                if(DOMElements.sourceLang.value === 'auto' && result.lang) {
+                    DOMElements.sourceLang.options[0].text = `Detected: ${langNames[result.lang] || result.lang}`;
+                }
+            } catch (e) { DOMElements.textOutput.value = "Translation error. Network unstable."; }
+            finally { DOMElements.translateSpinner.style.display = 'none'; }
+        }, 600); 
+    });
+
+    function playTTS(text, langCode) {
+        if (!text) return;
+        
+        // Pause previous audio
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        
+        const tl = ttsLangMap[langCode] || langCode;
+        const safeText = text.substring(0, 200); 
+        
+        // The 'tw-ob' client works perfectly now because the browser hides the Vercel Referer URL
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=${tl}&client=tw-ob`;
+        
+        currentAudio = new Audio(url);
+        currentAudio.play().catch(e => console.error("TTS Playback failed:", e));
+    }
+    
+    document.getElementById('speakInputBtn').addEventListener('click', () => playTTS(DOMElements.textInput.value, DOMElements.sourceLang.value === 'auto' ? 'en' : DOMElements.sourceLang.value));
+    document.getElementById('speakOutputBtn').addEventListener('click', () => playTTS(DOMElements.textOutput.value, DOMElements.targetLang.value));
+
+    let recognition = null;
+    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.continuous = false; recognition.interimResults = true;
+        
+        recognition.onstart = () => { DOMElements.micBtn.classList.add('active'); DOMElements.textInput.placeholder = "Listening... Speak now."; };
+        recognition.onresult = (e) => {
+            let transcript = '';
+            for (let i = e.resultIndex; i < e.results.length; ++i) { if (e.results[i].isFinal) transcript += e.results[i][0].transcript; }
+            if(transcript) { DOMElements.textInput.value += (DOMElements.textInput.value ? ' ' : '') + transcript; DOMElements.textInput.dispatchEvent(new Event('input')); }
+        };
+        recognition.onerror = () => { DOMElements.micBtn.classList.remove('active'); DOMElements.textInput.placeholder = "Enter text to translate..."; };
+        recognition.onend = () => { DOMElements.micBtn.classList.remove('active'); DOMElements.textInput.placeholder = "Enter text to translate..."; };
+    }
+
+    DOMElements.micBtn.addEventListener('click', async () => {
+        if(!recognition) return alert("Browser not supported. Use Chrome.");
+        if(DOMElements.micBtn.classList.contains('active')) return recognition.stop();
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(t => t.stop()); 
+            setTimeout(() => {
+                const lm = { 'hi': 'hi-IN', 'es': 'es-ES', 'fr': 'fr-FR', 'ja': 'ja-JP', 'de': 'de-DE', 'zh-CN': 'zh-CN', 'en': 'en-US', 'auto': 'en-US' };
+                recognition.lang = lm[DOMElements.sourceLang.value] || 'en-US'; 
+                try { recognition.start(); } catch(e){}
+            }, 300);
+        } catch(e) { alert("Mic permission required."); }
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+        if(!DOMElements.textOutput.value) return;
+        navigator.clipboard.writeText(DOMElements.textOutput.value);
+        const icon = document.getElementById('copyIcon');
+        icon.innerHTML = `<polyline points="20 6 9 17 4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+        setTimeout(() => icon.innerHTML = `<rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`, 2000);
+    });
+
+    // ==========================================
+    // 4. INTERACTIVE MODAL (Zoom & Pan)
+    // ==========================================
+    let mz = 1, px = 0, py = 0, isDragging = false, startX, startY;
+
+    function resetModal() {
+        mz = 1; px = 0; py = 0;
+        DOMElements.modalImg.style.transform = `translate(0px, 0px) scale(1)`;
+    }
+    function updateModalTransform() { DOMElements.modalImg.style.transform = `translate(${px}px, ${py}px) scale(${mz})`; }
+
+    DOMElements.modalBody.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        mz += e.deltaY * -0.005; 
+        mz = Math.min(Math.max(0.5, mz), 10); 
+        updateModalTransform();
+    });
+
+    DOMElements.modalBody.addEventListener('mousedown', (e) => {
+        e.preventDefault(); isDragging = true;
+        startX = e.clientX - px; startY = e.clientY - py;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if(!isDragging) return;
+        px = e.clientX - startX; py = e.clientY - startY;
+        updateModalTransform();
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    function showModalWithCanvas(ui) {
+        resetModal();
+        DOMElements.modalDownloadBtn.style.display = 'flex';
+        const renderCanvas = document.createElement('canvas');
+        const scale = 2; 
+        renderCanvas.width = ui.canvas.width * scale; renderCanvas.height = ui.canvas.height * scale;
+        const rCtx = renderCanvas.getContext('2d', { alpha: false });
+        rCtx.drawImage(ui.canvas, 0, 0, renderCanvas.width, renderCanvas.height);
+        
+        if (ui.items && ui.items.length > 0) {
+            ui.items.forEach(it => {
+                let printText = (it.text || "").replace(/[\x00-\x1F\x7F-\x9F]/g, "").trim();
+                if (!printText) return;
+                
+                let fontSize = Math.max(12, it.height * 0.75) * scale;
+                rCtx.font = `500 ${fontSize}px "Google Sans", "Inter", sans-serif`;
+                let targetWidth = it.width * scale;
+                let tW = rCtx.measureText(printText).width;
+                if (tW > targetWidth) {
+                    fontSize = fontSize * (targetWidth / tW);
+                    rCtx.font = `500 ${fontSize}px "Google Sans", "Inter", sans-serif`;
+                }
+                rCtx.fillStyle = it.tCol === '#ffffff' ? '#ffffff' : '#000000';
+                rCtx.textBaseline = 'middle';
+                rCtx.fillText(printText, it.left * scale, (it.top + (it.height / 2)) * scale);
+            });
+        }
+
+        const dataURL = renderCanvas.toDataURL('image/jpeg', 0.9);
+        DOMElements.modalImg.src = dataURL;
+        renderCanvas.width = 0; renderCanvas.height = 0; 
+        
+        DOMElements.modalDownloadBtn.onclick = () => {
+            const a = document.createElement('a'); a.href = dataURL; a.download = `Translated_Page_${ui.num}.jpg`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        };
+        DOMElements.imageModal.classList.add('active');
+    }
+
+    DOMElements.modalCloseBtn.addEventListener('click', () => DOMElements.imageModal.classList.remove('active'));
+    DOMElements.imageModal.addEventListener('click', (e) => { if(e.target === DOMElements.imageModal) DOMElements.imageModal.classList.remove('active'); });
+
+    // Profile Click Logic
+    document.getElementById('profileAvatar').addEventListener('click', () => {
+        resetModal();
+        DOMElements.modalImg.src = "https://i.ibb.co/F47sjfqh/IMG-20260103-121746-2.jpg";
+        DOMElements.modalDownloadBtn.style.display = 'none'; 
+        DOMElements.imageModal.classList.add('active');
+    });
+
+    // ==========================================
+    // 5. SECURE SERVER-SIDE DOCUMENT OCR 
+    // ==========================================
+    async function processOCR(base64Data, scale, langCode) {
+        // Calls the Vercel backend. Rate limits are handled totally invisibly by the backend.
+        const res = await safeFetchWithRetry('/api/ocr', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64Image: base64Data, language: langCode })
+        }, 3);
+        
+        const result = await res.json();
+        
+        // Only throws error if ALL 20 API KEYS fail on the backend!
+        if (result.error === "ALL_KEYS_EXHAUSTED") {
+            alert("System Alert: You have exhausted the monthly quota across ALL 20 API keys!");
+            throw new Error("Quota exceeded on all keys.");
+        }
+
+        if (result.IsErroredOnProcessing || !result.ParsedResults) throw new Error("OCR Logic error returned by server");
+        if (!result.ParsedResults[0].TextOverlay) return[];
+        
+        const sf = 1 / scale;
+        return result.ParsedResults[0].TextOverlay.Lines.map(line => {
+            const minLeft = Math.min(...line.Words.map(w => w.Left)); const maxRight = Math.max(...line.Words.map(w => w.Left + w.Width));
+            return { left: minLeft * sf, top: line.MinTop * sf, width: (maxRight - minLeft) * sf, height: line.MaxHeight * sf, text: line.LineText.trim() };
+        });
+    }
+
+    DOMElements.dropZone.addEventListener('click', () => DOMElements.fileUpload.click());
+    DOMElements.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); DOMElements.dropZone.classList.add('dragover'); });
+    DOMElements.dropZone.addEventListener('dragleave', () => DOMElements.dropZone.classList.remove('dragover'));
+    DOMElements.dropZone.addEventListener('drop', (e) => {
+        e.preventDefault(); DOMElements.dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) { DOMElements.fileUpload.files = e.dataTransfer.files; handleFiles(); }
+    });
+    DOMElements.fileUpload.addEventListener('change', handleFiles);
+
+    async function handleFiles() {
+        currentFiles = Array.from(DOMElements.fileUpload.files);
+        processedPages =[]; loadedPdfDoc = null; 
+        cachedDocPages = {}; currentFileHash = "";
+        
+        DOMElements.pagesContainer.style.display = 'none'; DOMElements.pagesContainer.innerHTML = ''; 
+        DOMElements.downloadBtn.style.display = 'none'; DOMElements.pdfStatusArea.style.display = 'none';
+        
+        if (currentFiles.length === 0) return;
+        DOMElements.docControls.style.display = 'flex';
+        
+        if (currentFiles.length === 1 && currentFiles[0].type === 'application/pdf') {
+            updateStatus("Reading PDF & Checking Cache...", "load");
+            try {
+                currentFileHash = await getFileHash(currentFiles[0]);
+                const savedCache = await loadPdfCache(currentFileHash);
+                if (savedCache) cachedDocPages = savedCache;
+                
+                const typedarray = new Uint8Array(await currentFiles[0].arrayBuffer());
+                loadedPdfDoc = await pdfjsLib.getDocument({ data: typedarray }).promise;
+                DOMElements.pdfConfig.style.display = 'flex';
+                DOMElements.startPageInput.max = loadedPdfDoc.numPages; DOMElements.endPageInput.max = loadedPdfDoc.numPages;
+                DOMElements.endPageInput.value = loadedPdfDoc.numPages; 
+                DOMElements.startPageInput.value = 1;
+                DOMElements.pdfMetaText.innerText = `(Max: ${loadedPdfDoc.numPages})`;
+                
+                const cacheCount = Object.keys(cachedDocPages).length;
+                if(cacheCount > 0) updateStatus(`PDF Ready. ${cacheCount} processed pages restored from cache.`, "success");
+                else updateStatus("PDF Ready. Select languages and pages.", "success");
+            } catch (e) { updateStatus("Invalid PDF file.", "error"); }
+        } else {
+            DOMElements.pdfConfig.style.display = 'none';
+            updateStatus(`${currentFiles.length} Image(s) loaded. Ready to translate.`, "success");
+        }
+    }
+
+    function getDominantPerimeterColor(ctx, x, y, w, h) {
+        const p = 3; const sX = Math.max(0, x - p); const sY = Math.max(0, y - p);
+        const sW = Math.min(ctx.canvas.width - sX, w + p * 2); const sH = Math.min(ctx.canvas.height - sY, h + p * 2);
+        const imgData = ctx.getImageData(sX, sY, sW, sH).data;
+        const cCounts = {}; let mCount = 0; let mColor =[255, 255, 255]; 
+
+        function sample(idx) {
+            if (imgData[idx] === undefined) return;
+            const key = `${Math.round(imgData[idx]/15)*15},${Math.round(imgData[idx+1]/15)*15},${Math.round(imgData[idx+2]/15)*15}`;
+            cCounts[key] = (cCounts[key] || 0) + 1;
+            if (cCounts[key] > mCount) { mCount = cCounts[key]; mColor =[imgData[idx], imgData[idx+1], imgData[idx+2]]; }
+        }
+
+        for (let i=0; i<sW; i++) { sample((0*sW+i)*4); sample(((sH-1)*sW+i)*4); }
+        for (let j=0; j<sH; j++) { sample((j*sW+0)*4); sample((j*sW+sW-1)*4); }
+        return { r: mColor[0], g: mColor[1], b: mColor[2], sX, sY, sW, sH };
+    }
+
+    async function processWithConcurrency(tasks, limit) {
+        const results =[]; const executing =[];
+        for (const task of tasks) {
+            const p = Promise.resolve().then(() => task());
+            results.push(p);
+            if (limit <= tasks.length) {
+                const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+                executing.push(e);
+                if (executing.length >= limit) await Promise.race(executing);
+            }
+        }
+        return Promise.all(results);
+    }
+
+    DOMElements.analyzeBtn.addEventListener('click', async () => {
+        if (!currentFiles.length) return;
+        
+        DOMElements.analyzeBtn.disabled = true; 
+        DOMElements.downloadBtn.style.display = 'none';
+        document.querySelector('#analyzeBtn .btn-icon').style.display = 'none'; 
+        DOMElements.analyzeBtnText.innerText = "Initializing translation...";
+        
+        DOMElements.pagesContainer.style.display = 'flex'; DOMElements.pagesContainer.innerHTML = '';
+        updateStatus("Initializing Document Translation...", "load");
+        
+        try {
+            processedPages =[];
+            const selectedOcrLang = ocrLangMap[DOMElements.docSourceLang.value] || 'eng';
+            
+            if (loadedPdfDoc) {
+                const s = parseInt(DOMElements.startPageInput.value) || 1; 
+                const e = parseInt(DOMElements.endPageInput.value) || loadedPdfDoc.numPages;
+                const maxConcurrent = parseInt(DOMElements.concurrencyLimit.value) || 3;
+                
+                const pageWrappers = {};
+                for (let i = s; i <= e; i++) {
+                    const wrapper = document.createElement('div'); wrapper.className = 'page-wrapper';
+                    wrapper.innerHTML = `<div class="page-status">Page ${i} Pending...</div>
+                        <div class="canvas-wrapper" title="Click to View & Pan/Zoom"><canvas></canvas><svg class="overlay"></svg></div>`;
+                    DOMElements.pagesContainer.appendChild(wrapper);
+                    pageWrappers[i] = wrapper;
+                }
+
+                const tasks =[];
+                for (let i = s; i <= e; i++) {
+                    tasks.push(async () => {
+                        const wrapper = pageWrappers[i];
+                        const canvas = wrapper.querySelector('canvas'); const svg = wrapper.querySelector('svg');
+                        const statusDiv = wrapper.querySelector('.page-status'); 
+                        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                        
+                        let isSuccess = false;
+                        
+                        while (!isSuccess) {
+                            try {
+                                while(!navigator.onLine) {
+                                    statusDiv.innerText = `Page ${i}: Paused (No Internet)...`;
+                                    await new Promise(r => setTimeout(r, 2000));
+                                }
+
+                                statusDiv.innerText = `Page ${i}: Extracting Image...`;
+                                DOMElements.analyzeBtnText.innerText = `Translating Page ${i}...`;
+
+                                const page = await loadedPdfDoc.getPage(i);
+                                const vp = page.getViewport({ scale: 1.5 }); 
+                                canvas.width = vp.width; canvas.height = vp.height; 
+                                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,vp.width,vp.height);
+                                await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+                                let items =[];
+
+                                if (cachedDocPages[i]) {
+                                    statusDiv.innerText = `Page ${i}: Loaded from Cache`;
+                                    items = cachedDocPages[i];
+                                } else {
+                                    const off = document.createElement('canvas'); const scale = Math.min(1, 1200 / Math.max(canvas.width, canvas.height));
+                                    off.width = canvas.width * scale; off.height = canvas.height * scale;
+                                    const oCtx = off.getContext('2d', { alpha: false }); oCtx.fillStyle = "#fff"; oCtx.fillRect(0, 0, off.width, off.height);
+                                    oCtx.drawImage(canvas, 0, 0, off.width, off.height);
+                                    const b64 = off.toDataURL('image/jpeg', 0.8);
+                                    
+                                    off.width = 0; off.height = 0; 
+
+                                    statusDiv.innerText = `Page ${i}: Scanning OCR...`;
+                                    DOMElements.analyzeBtnText.innerText = `Translating Page ${i}...`;
+                                    
+                                    items = await processOCR(b64, scale, selectedOcrLang);
+                                    
+                                    if (items.length > 0) {
+                                        statusDiv.innerText = `Page ${i}: Translating...`;
+                                        const textPayload = items.map(t => t.text).join('\n');
+                                        const sl = DOMElements.docSourceLang.value === 'auto' ? 'auto' : DOMElements.docSourceLang.value;
+                                        
+                                        const result = await translator.translate(textPayload, sl, DOMElements.docTargetLang.value);
+                                        const transArr = result.text.split('\n');
+                                        items.forEach((item, idx) => { if(transArr[idx]) item.text = transArr[idx].trim(); });
+                                    }
+                                    
+                                    cachedDocPages[i] = items;
+                                    await savePdfCache(currentFileHash, cachedDocPages);
+                                }
+
+                                svg.innerHTML = ''; 
+                                svg.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
+                                items.forEach(item => {
+                                    const bg = getDominantPerimeterColor(ctx, item.left, item.top, item.width, item.height);
+                                    item.tCol = ((bg.r*299 + bg.g*587 + bg.b*114)/1000) > 130 ? '#1f1f1f' : '#ffffff';
+                                    ctx.fillStyle = `rgb(${bg.r},${bg.g},${bg.b})`; ctx.fillRect(bg.sX, bg.sY, bg.sW, bg.sH);
+
+                                    const tNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                    tNode.setAttribute('x', item.left); tNode.setAttribute('y', item.top + (item.height / 2));
+                                    tNode.setAttribute('fill', item.tCol); tNode.setAttribute('font-size', Math.max(12, item.height * 0.75));
+                                    tNode.setAttribute('font-family', 'Google Sans, Inter, sans-serif'); tNode.setAttribute('dominant-baseline', 'central');
+                                    tNode.setAttribute('textLength', item.width); tNode.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+                                    tNode.textContent = item.text; svg.appendChild(tNode);
+                                });
+
+                                statusDiv.innerText = `Page ${i}: Complete`; statusDiv.style.color = 'var(--success)';
+                                
+                                const pageData = { num: i, canvas, items };
+                                processedPages.push(pageData);
+                                wrapper.querySelector('.canvas-wrapper').addEventListener('click', () => showModalWithCanvas(pageData));
+                                
+                                isSuccess = true; 
+                                
+                            } catch (err) {
+                                console.warn(`Translation error on Page ${i}. Catching and Retrying...`, err);
+                                statusDiv.innerHTML = `Page ${i}: Network Error. Retrying...<br><span style="font-size:12px;color:var(--text-muted);font-weight:normal;">Suggestion: Turn on flight mode then off to retry</span>`;
+                                statusDiv.style.color = 'var(--error)';
+                                await new Promise(r => setTimeout(r, 3000)); 
+                            }
+                        }
+                    });
+                }
+                await processWithConcurrency(tasks, maxConcurrent);
+
+            } else {
+                for (let i = 0; i < currentFiles.length; i++) {
+                    const wrapper = document.createElement('div'); wrapper.className = 'page-wrapper';
+                    wrapper.innerHTML = `<div class="page-status">Image ${i + 1} Pending...</div>
+                        <div class="canvas-wrapper"><canvas></canvas><svg class="overlay"></svg></div>`;
+                    DOMElements.pagesContainer.appendChild(wrapper);
+                    
+                    const canvas = wrapper.querySelector('canvas'); const svg = wrapper.querySelector('svg');
+                    const statusDiv = wrapper.querySelector('.page-status'); const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    
+                    let isSuccess = false;
+                    while (!isSuccess) {
+                        try {
+                            while(!navigator.onLine) await new Promise(r => setTimeout(r, 2000));
+
+                            DOMElements.analyzeBtnText.innerText = `Translating Image ${i + 1}...`;
+                            statusDiv.innerText = `Image ${i + 1}: Processing...`;
+                            
+                            const img = new Image(); img.src = URL.createObjectURL(currentFiles[i]);
+                            await new Promise(r => img.onload = r);
+                            canvas.width = img.width; canvas.height = img.height; ctx.drawImage(img, 0, 0);
+
+                            const off = document.createElement('canvas'); const scale = Math.min(1, 1200 / Math.max(img.width, img.height));
+                            off.width = img.width * scale; off.height = img.height * scale;
+                            const oCtx = off.getContext('2d', { alpha: false }); oCtx.fillStyle = "#fff"; oCtx.fillRect(0, 0, off.width, off.height);
+                            oCtx.drawImage(canvas, 0, 0, off.width, off.height);
+                            const b64 = off.toDataURL('image/jpeg', 0.8);
+                            
+                            off.width = 0; off.height = 0;
+
+                            statusDiv.innerText = `Image ${i + 1}: Scanning OCR...`;
+                            let items = await processOCR(b64, scale, selectedOcrLang);
+                            
+                            if (items.length > 0) {
+                                statusDiv.innerText = `Image ${i + 1}: Translating...`;
+                                const textPayload = items.map(t => t.text).join('\n');
+                                const sl = DOMElements.docSourceLang.value === 'auto' ? 'auto' : DOMElements.docSourceLang.value;
+                                const result = await translator.translate(textPayload, sl, DOMElements.docTargetLang.value);
+                                const transArr = result.text.split('\n');
+                                items.forEach((item, idx) => { if(transArr[idx]) item.text = transArr[idx].trim(); });
+                            }
+
+                            svg.innerHTML = '';
+                            svg.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
+                            items.forEach(item => {
+                                const bg = getDominantPerimeterColor(ctx, item.left, item.top, item.width, item.height);
+                                item.tCol = ((bg.r*299 + bg.g*587 + bg.b*114)/1000) > 130 ? '#1f1f1f' : '#ffffff';
+                                ctx.fillStyle = `rgb(${bg.r},${bg.g},${bg.b})`; ctx.fillRect(bg.sX, bg.sY, bg.sW, bg.sH);
+                                const tNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                tNode.setAttribute('x', item.left); tNode.setAttribute('y', item.top + (item.height / 2));
+                                tNode.setAttribute('fill', item.tCol); tNode.setAttribute('font-size', Math.max(12, item.height * 0.75));
+                                tNode.setAttribute('font-family', 'Google Sans, Inter, sans-serif'); tNode.setAttribute('dominant-baseline', 'central');
+                                tNode.setAttribute('textLength', item.width); tNode.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+                                tNode.textContent = item.text; svg.appendChild(tNode);
+                            });
+
+                            statusDiv.innerText = `Image ${i + 1}: Complete`; statusDiv.style.color = 'var(--success)';
+                            const pageData = { num: i + 1, canvas, items };
+                            processedPages.push(pageData);
+                            wrapper.querySelector('.canvas-wrapper').addEventListener('click', () => showModalWithCanvas(pageData));
+                            isSuccess = true;
+                        } catch (err) {
+                            statusDiv.innerHTML = `Image ${i + 1}: Network Error. Retrying...<br><span style="font-size:12px;color:var(--text-muted);font-weight:normal;">Suggestion: Turn on flight mode then off to retry</span>`;
+                            statusDiv.style.color = 'var(--error)';
+                            await new Promise(r => setTimeout(r, 3000));
+                        }
+                    }
+                }
+            }
+            
+            updateStatus("Translation complete. Ready for Export.", "success");
+            DOMElements.downloadBtn.style.display = 'flex'; triggerAutoSave();
+            
+        } catch (e) { 
+            updateStatus("Processing sequence interrupted.", "error"); 
+        } finally { 
+            DOMElements.analyzeBtn.disabled = false; 
+            document.querySelector('#analyzeBtn .btn-icon').style.display = 'block';
+            DOMElements.analyzeBtnText.innerText = "Translate Document";
+        }
+    });
+
+    DOMElements.downloadBtn.addEventListener('click', async () => {
+        if (!processedPages.length) return;
+        DOMElements.downloadBtn.style.display = 'none'; 
+        DOMElements.pdfStatusArea.style.display = 'flex';
+        updateStatus("Building High-Quality Image PDF...", "load");
+        
+        try {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'pt', 'a4');
+            const pdfW = pdf.internal.pageSize.getWidth(); 
+            const pdfH = pdf.internal.pageSize.getHeight();
+            
+            processedPages.sort((a, b) => a.num - b.num);
+
+            for (let i = 0; i < processedPages.length; i++) {
+                const ui = processedPages[i];
+                if (i > 0) pdf.addPage();
+                
+                let renderCanvas = document.createElement('canvas');
+                renderCanvas.width = ui.canvas.width; 
+                renderCanvas.height = ui.canvas.height;
+                const rCtx = renderCanvas.getContext('2d', { alpha: false });
+                
+                rCtx.drawImage(ui.canvas, 0, 0);
+
+                if (ui.items && ui.items.length > 0) {
+                    ui.items.forEach(it => {
+                        let printText = (it.text || "").replace(/[\x00-\x1F\x7F-\x9F]/g, "").trim();
+                        if (!printText) return;
+                    
+                        let fontSize = Math.max(12, it.height * 0.75);
+                        rCtx.font = `500 ${fontSize}px "Google Sans", "Inter", sans-serif`;
+                        
+                        let tW = rCtx.measureText(printText).width;
+                        let targetWidth = it.width;
+                        
+                        if (tW > targetWidth && tW > 0) {
+                            fontSize = fontSize * (targetWidth / tW);
+                            rCtx.font = `500 ${fontSize}px "Google Sans", "Inter", sans-serif`;
+                        }
+
+                        rCtx.fillStyle = it.tCol === '#ffffff' ? '#ffffff' : '#000000';
+                        rCtx.textBaseline = 'middle';
+                        rCtx.fillText(printText, it.left, it.top + (it.height / 2));
+                    });
+                }
+
+                const imgData = renderCanvas.toDataURL('image/jpeg', 0.85); 
+                const imgProps = pdf.getImageProperties(imgData);
+                const ratio = imgProps.width / imgProps.height;
+                
+                let rW = pdfW; let rH = pdfW / ratio;
+                if (rH > pdfH) { rH = pdfH; rW = pdfH * ratio; }
+                
+                const xO = (pdfW - rW) / 2; const yO = (pdfH - rH) / 2;
+                pdf.addImage(imgData, 'JPEG', xO, yO, rW, rH, undefined, 'FAST');
+
+                renderCanvas.width = 0; 
+                renderCanvas.height = 0;
+                renderCanvas = null;
+
+                await new Promise(r => setTimeout(r, 20)); 
+            }
+            
+            let baseName = "Document";
+            if (currentFiles && currentFiles.length > 0) {
+                baseName = currentFiles[0].name.replace(/\.[^/.]+$/, "");
+            }
+            pdf.save(`${baseName} translated at 8481 Servers.pdf`);
+            
+            updateStatus("PDF Generated Successfully.", "success");
+            
+        } catch (e) {
+            updateStatus("Export error.", "error"); 
+        } finally { 
+            DOMElements.pdfStatusArea.style.display = 'none'; 
+            DOMElements.downloadBtn.style.display = 'flex'; 
+        }
+    });
+
+</script>
+</body>
+</html>
