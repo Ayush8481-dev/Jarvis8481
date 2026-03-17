@@ -675,15 +675,7 @@
         }, 600); 
     });
 
-    function playTTS(text, langCode) {
-        if (!text) return;
-        if (currentAudio) currentAudio.pause();
-        const tl = ttsLangMap[langCode] || langCode;
-        const safeText = text.substring(0, 200); 
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=${tl}&client=tw-ob`;
-        currentAudio = new Audio(url);
-        currentAudio.play();
-    }
+    
     
     document.getElementById('speakInputBtn').addEventListener('click', () => playTTS(DOMElements.textInput.value, DOMElements.sourceLang.value === 'auto' ? 'en' : DOMElements.sourceLang.value));
     document.getElementById('speakOutputBtn').addEventListener('click', () => playTTS(DOMElements.textOutput.value, DOMElements.targetLang.value));
@@ -704,7 +696,26 @@
     }
 
     DOMElements.micBtn.addEventListener('click', async () => {
-        if(!recognition) return alert("Browser not supported. Use Chrome.");
+        if(!recognition) return alert("Browser not supported. Use Chrome.");function playTTS(text, langCode) {
+        if (!text) return;
+        
+        // Pause and reset previous audio to prevent overlapping
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        
+        const tl = ttsLangMap[langCode] || langCode;
+        const safeText = text.substring(0, 200); 
+        
+        // FIX: Changed to googleapis.com and client=gtx to bypass Vercel server blocks
+        const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=${tl}&client=gtx`;
+        
+        currentAudio = new Audio(url);
+        
+        // Added error catching so the app doesn't crash if browser blocks autoplay
+        currentAudio.play().catch(e => console.error("TTS Playback failed:", e));
+        }
         if(DOMElements.micBtn.classList.contains('active')) return recognition.stop();
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
